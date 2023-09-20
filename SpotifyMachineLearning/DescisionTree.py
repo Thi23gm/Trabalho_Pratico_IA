@@ -72,7 +72,7 @@ def preprocess_data(df):
     return df
 
 def main():
-    file_path = '../dados/spotify.csv'
+    file_path = '../DB/spotify.csv'
     df = load_data(file_path)
     df = preprocess_data(df)
 
