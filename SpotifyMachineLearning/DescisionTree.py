@@ -115,7 +115,7 @@ def main():
     X.to_csv('spotify_preprocessed.csv', index=False)
     y.to_csv('spotify_preprocessed.csv', index=False)
 
-    model = DecisionTreeClassifier(random_state=42)
+    model = DecisionTreeClassifier(random_state=42, max_depth=3)
     model.fit(X_train, y_train)
 
     y_pred = model.predict(X_test)
