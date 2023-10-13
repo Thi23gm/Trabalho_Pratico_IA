@@ -1,11 +1,13 @@
 import re
 import numpy as np
 import pandas as pd
-from scipy import stats
 import matplotlib.pyplot as plt
+from scipy import stats
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
+from imblearn.over_sampling import RandomOverSampler
 from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.ensemble import RandomForestClassifier
 from yellowbrick.classifier import ConfusionMatrix
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
@@ -51,6 +53,22 @@ def normalize_artist_names(df):
     df['artist(s)_name'] = df['artist(s)_name'].apply(normalize_artist_name)
     return df
 
+def balance_data(data, target_column_name):
+    X = data.drop(target_column_name, axis=1)
+    y = data[target_column_name]
+
+    # Inicializar o RandomOverSampler
+    oversampler = RandomOverSampler(random_state=42)
+
+    # Realizar oversampling
+    X_resampled, y_resampled = oversampler.fit_resample(X, y)
+
+    # Criar um novo DataFrame com dados balanceados
+    balanced_data = X_resampled.copy()
+    balanced_data[target_column_name] = y_resampled
+
+    return balanced_data
+
 # Função para codificar variáveis categóricas
 def encode_categorical_variables(df):
     df = pd.get_dummies(df, columns=['key', 'mode'])
@@ -75,9 +93,15 @@ def detect_outliers(df, column, threshold=3):
 
 # Função para criar uma coluna de "Popularidade" com base em streams
 def create_popularity_column(df):
-    # Adicionar 1 para Popular e 0 para Não Popular
-    df['Popularidade'] = np.where(df['streams'] > 0, '1', '0')
+    # Calcular a média dos valores na coluna 'streams'
+    mean_value = df['streams'].mean()
+    print(mean_value)
+
+    # Usar np.where para atribuir '1' se maior que a média, '0' caso contrário
+    df['Popularidade'] = np.where(df['streams'] > mean_value, '1', '0')
+    
     return df
+
 
 # Função para porecessar os dados e chamar todos os outros
 def preprocess_data(df):
@@ -85,6 +109,7 @@ def preprocess_data(df):
     df = handle_missing_data_numeric(df)
     df = normalize_artist_names(df)
     df = encode_categorical_variables(df)
+    #df = data_balanced(df)
 
     numeric_columns = ['streams', 'in_deezer_playlists', 'artist_count', 'in_spotify_playlists', 'in_spotify_charts',
                        'in_apple_playlists', 'in_apple_charts', 'in_deezer_charts', 'in_shazam_charts', 'bpm',
@@ -106,6 +131,9 @@ def main():
     file_path = '../DB/spotify.csv'
     df = load_data(file_path)
     df = preprocess_data(df)
+    
+    # Balanceamento dos dados
+    df = balance_data(df, 'Popularidade')  # 'Popularidade' é a coluna alvo
 
     X = df.drop(['streams', 'Popularidade', 'track_name', 'artist(s)_name', 'release_date'], axis=1) # Dados de texto
     y = df['Popularidade']
@@ -114,6 +142,8 @@ def main():
 
     X.to_csv('spotify_preprocessed.csv', index=False)
     y.to_csv('spotify_preprocessed.csv', index=False)
+
+    # ------------------------ Arvore de Decisão ------------------------
 
     model = DecisionTreeClassifier(random_state=42, max_depth=3)
     model.fit(X_train, y_train)
@@ -133,6 +163,32 @@ def main():
     plt.figure(figsize=(20, 10))
     feature_names = list(X.columns)
     plot_tree(model, filled=True, feature_names=feature_names, class_names=['0', '1'], max_depth=3)
+
+    plt.show()
+
+    # ------------------------ Random Forest ------------------------
+    
+    X_train.fillna(X_train.mean(), inplace=True)
+    X_test.fillna(X_test.mean(), inplace=True)
+
+    rf_model = RandomForestClassifier(random_state=42, n_estimators=100, max_depth=3)
+    rf_model.fit(X_train, y_train)
+
+    y_pred_rf = rf_model.predict(X_test)
+
+
+    cm_rf = ConfusionMatrix(rf_model)
+    cm_rf.fit(X_train, y_train)
+    cm_rf.score(X_test, y_test)
+    print("Relatório de Classificação (Random Forest):\n", classification_report(y_test, y_pred_rf))
+
+    accuracy_rf = accuracy_score(y_test, y_pred_rf)
+    print(f"Porcentagem de Acerto do modelo Random Forest: {accuracy_rf * 100: .2f}%")
+
+    plt.figure(figsize=(20, 10))
+    feature_names = list(X.columns)
+    for estimator in rf_model.estimators_:
+        plot_tree(estimator, filled=True, feature_names=feature_names, class_names=['0', '1'], max_depth=3)
 
     plt.show()
 
