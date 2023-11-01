@@ -1,8 +1,13 @@
+# pip install numpy pandas matplotlib scipy scikit-learn imbalanced-learn yellowbrick keras
 import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats
+from keras.layers import Conv1D
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import RandomOverSampler
@@ -10,6 +15,10 @@ from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.ensemble import RandomForestClassifier
 from yellowbrick.classifier import ConfusionMatrix
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from keras.datasets import mnist
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from keras.utils import to_categorical
 
 # Função para carregar os dados de um arquivo CSV
 def load_data(file_path):
@@ -128,7 +137,7 @@ def preprocess_data(df):
 
 # Função principal
 def main():
-    file_path = '../DB/spotify.csv'
+    file_path = '../dados/spotify.csv'
     df = load_data(file_path)
     df = preprocess_data(df)
     
@@ -142,8 +151,8 @@ def main():
 
     X.to_csv('spotify_preprocessed.csv', index=False)
     y.to_csv('spotify_preprocessed.csv', index=False)
-
-    # ------------------------ Arvore de Decisão ------------------------
+    
+    #------------------------ Arvore de Decisão ------------------------
 
     model = DecisionTreeClassifier(random_state=42, max_depth=3)
     model.fit(X_train, y_train)
@@ -155,10 +164,11 @@ def main():
     cm = ConfusionMatrix(model)
     cm.fit(X_train, y_train)
     cm.score(X_test, y_test)
+    print("Relatório de Classificação (Arvore de Decisão):\n");
     print(classification_report(y_test, y_pred))
 
     accuracy = accuracy_score(y_test, y_pred)
-    print(f"Porcentagem de Acerto do modelo: {accuracy * 100: .2f}%")
+    print(f"Porcentagem de Acerto do modelo Arvore de Decisão: {accuracy * 100: .2f}%")
 
     plt.figure(figsize=(20, 10))
     feature_names = list(X.columns)
@@ -189,7 +199,56 @@ def main():
     feature_names = list(X.columns)
     for estimator in rf_model.estimators_:
         plot_tree(estimator, filled=True, feature_names=feature_names, class_names=['0', '1'], max_depth=3)
+ 
+    plt.show()
 
+    # ------------------------ MPLs ------------------------ 
+
+    # Tratando valores ausentes usando SimpleImputer (substituindo NaN pela média)
+    imputer = SimpleImputer(strategy='mean')
+    X_train = imputer.fit_transform(X_train)
+    X_test = imputer.transform(X_test)
+
+    # Treinando o modelo MLP
+    mlp_model = MLPClassifier(hidden_layer_sizes=(100, 50), max_iter=1000, random_state=42)
+    mlp_model.fit(X_train, y_train)
+
+    # Fazendo previsões com o modelo MLP
+    y_pred_mlp = mlp_model.predict(X_test)
+
+    # Mostrando resultados
+    print("Relatório de Classificação (MLP):")
+    print(classification_report(y_test, y_pred_mlp))
+
+    accuracy_mlp = accuracy_score(y_test, y_pred_mlp)
+    print(f"Porcentagem de Acerto do modelo MLP: {accuracy_mlp * 100: .2f}%")
+
+    # Supondo que 'mlp_model' seja o modelo treinado
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    for i in range(len(mlp_model.coefs_) - 1):
+        ax.matshow(mlp_model.coefs_[i], cmap='viridis')
+
+    ax.set_title('Estrutura da MLP')
+    plt.show()
+
+    mlp_model = MLPClassifier(hidden_layer_sizes=(100, 50), max_iter=1000, random_state=42)
+    mlp_model.fit(X_train, y_train)
+
+    plt.plot(mlp_model.loss_curve_)
+    plt.title('Curva de Perda durante o Treinamento')
+    plt.xlabel('Épocas')
+    plt.ylabel('Perda')
+    plt.show()
+
+    mlp_model = MLPClassifier(hidden_layer_sizes=(100, 50), max_iter=1000, random_state=42)
+    mlp_model.fit(X_train, y_train)
+
+    # Supondo que 'mlp_model' seja o modelo treinado
+    fig, axes = plt.subplots(1, len(mlp_model.coefs_), figsize=(15, 5))
+    for i, coef in enumerate(mlp_model.coefs_):
+        axes[i].imshow(coef, cmap='viridis', aspect='auto')
+        axes[i].set_title(f'Camada {i+1} Pesos')
     plt.show()
 
 
