@@ -1,10 +1,12 @@
 # pip install numpy pandas matplotlib scipy scikit-learn imbalanced-learn yellowbrick keras
+
 import re
+from sklearn.naive_bayes import GaussianNB
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 from scipy import stats
-from keras.layers import Conv1D
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
@@ -223,7 +225,6 @@ def main():
     accuracy_mlp = accuracy_score(y_test, y_pred_mlp)
     print(f"Porcentagem de Acerto do modelo MLP: {accuracy_mlp * 100: .2f}%")
 
-    # Supondo que 'mlp_model' seja o modelo treinado
     fig, ax = plt.subplots(figsize=(12, 6))
 
     for i in range(len(mlp_model.coefs_) - 1):
@@ -251,6 +252,34 @@ def main():
         axes[i].set_title(f'Camada {i+1} Pesos')
     plt.show()
 
+    # ------------------------ Naive Bayes ------------------------
+    
+    naive_bayes_model = GaussianNB()
+    naive_bayes_model.fit(X_train, y_train)
+    y_pred_nb = naive_bayes_model.predict(X_test)
+
+    print("Relatório de Classificação (Naive Bayes):")
+    print(classification_report(y_test, y_pred_nb))
+
+    accuracy_nb = accuracy_score(y_test, y_pred_nb)
+    print(f"Porcentagem de Acerto do modelo Naive Bayes: {accuracy_nb * 100: .2f}%")
+
+    plt.figure(figsize=(20, 10))
+
+    feature_names = list(X.columns)
+    plt.figure(figsize=(20, 10))  # Definir o tamanho individual da figura para cada árvore
+    plot_tree(estimator, filled=True, feature_names=feature_names, class_names=['0', '1'], max_depth=3)
+    plt.show()  # Mostrar cada árvore separadamente
+
+    conf_matrix_nb = confusion_matrix(y_test, y_pred_nb)
+
+    # Exibição da matriz de confusão usando seaborn
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(conf_matrix_nb, annot=True, cmap='Blues', fmt='d', cbar=False)
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Matriz de Confusão - Naive Bayes')
+    plt.show()
 
 if __name__ == "__main__":
     main()
