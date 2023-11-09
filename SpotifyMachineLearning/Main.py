@@ -1,12 +1,13 @@
 # pip install numpy pandas matplotlib scipy scikit-learn imbalanced-learn yellowbrick keras
 
 import re
-from sklearn.naive_bayes import GaussianNB
+import xgboost as xgb
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
+from sklearn.datasets import make_blobs
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
@@ -17,10 +18,7 @@ from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.ensemble import RandomForestClassifier
 from yellowbrick.classifier import ConfusionMatrix
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-from keras.datasets import mnist
-from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
-from keras.utils import to_categorical
+from sklearn.neighbors import KNeighborsClassifier
 
 # Função para carregar os dados de um arquivo CSV
 def load_data(file_path):
@@ -219,11 +217,11 @@ def main():
     y_pred_mlp = mlp_model.predict(X_test)
 
     # Mostrando resultados
-    print("Relatório de Classificação (MLP):")
+    print("Relatório de Classificação (MPL):")
     print(classification_report(y_test, y_pred_mlp))
 
     accuracy_mlp = accuracy_score(y_test, y_pred_mlp)
-    print(f"Porcentagem de Acerto do modelo MLP: {accuracy_mlp * 100: .2f}%")
+    print(f"Porcentagem de Acerto do modelo MPL: {accuracy_mlp * 100: .2f}%")
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -252,33 +250,122 @@ def main():
         axes[i].set_title(f'Camada {i+1} Pesos')
     plt.show()
 
-    # ------------------------ Naive Bayes ------------------------
+
     
-    naive_bayes_model = GaussianNB()
-    naive_bayes_model.fit(X_train, y_train)
-    y_pred_nb = naive_bayes_model.predict(X_test)
+    # ------------------------ K-Nearest Neighbors (K-NN) ------------------------
+    
+    k = 5  # Número de vizinhos
+    knn_model = KNeighborsClassifier(n_neighbors=k)
+    knn_model.fit(X_train, y_train)
+    
+    y_pred_knn = knn_model.predict(X_test)
 
-    print("Relatório de Classificação (Naive Bayes):")
-    print(classification_report(y_test, y_pred_nb))
+    print("Relatório de Classificação (K-NN):")
+    print(classification_report(y_test, y_pred_knn))
 
-    accuracy_nb = accuracy_score(y_test, y_pred_nb)
-    print(f"Porcentagem de Acerto do modelo Naive Bayes: {accuracy_nb * 100: .2f}%")
+    accuracy_knn = accuracy_score(y_test, y_pred_knn)
+    print(f"Porcentagem de Acerto do modelo K-NN: {accuracy_knn * 100: .2f}%")
 
-    plt.figure(figsize=(20, 10))
+    # Criando dados de exemplo
+    X, y = make_blobs(n_samples=300, centers=4, random_state=42)
 
-    feature_names = list(X.columns)
-    plt.figure(figsize=(20, 10))  # Definir o tamanho individual da figura para cada árvore
-    plot_tree(estimator, filled=True, feature_names=feature_names, class_names=['0', '1'], max_depth=3)
-    plt.show()  # Mostrar cada árvore separadamente
+    # Treinando o modelo K-NN
+    k = 5  # Número de vizinhos
+    knn_model = KNeighborsClassifier(n_neighbors=k)
+    knn_model.fit(X, y)
 
-    conf_matrix_nb = confusion_matrix(y_test, y_pred_nb)
+    # Plotando a separação de classes no espaço bidimensional
+    plt.figure(figsize=(8, 6))
+
+    # Determinando limites do gráfico
+    x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+    y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+
+    # Criando a grade para o gráfico
+    h = 0.02  # Tamanho do passo na grade
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+
+    # Fazendo previsões para cada ponto na grade
+    Z = knn_model.predict(np.c_[xx.ravel(), yy.ravel()])
+    Z = Z.reshape(xx.shape)
+
+    # Plotando a região de decisão
+    plt.contourf(xx, yy, Z, alpha=0.8)
+
+    # Plotando os pontos de dados
+    plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.Paired)
+    plt.xlabel('Feature 1')
+    plt.ylabel('Feature 2')
+    plt.title('K-Nearest Neighbors (K-NN)')
+    plt.show()
+    # Cálculo da matriz de confusão
+    conf_matrix_knn = confusion_matrix(y_test, y_pred_knn)
 
     # Exibição da matriz de confusão usando seaborn
     plt.figure(figsize=(8, 6))
-    sns.heatmap(conf_matrix_nb, annot=True, cmap='Blues', fmt='d', cbar=False)
+    sns.heatmap(conf_matrix_knn, annot=True, cmap='Blues', fmt='d', cbar=False)
     plt.xlabel('Predicted')
     plt.ylabel('Actual')
-    plt.title('Matriz de Confusão - Naive Bayes')
+    plt.title('Matriz de Confusão - K-NN')
+    plt.show()
+
+
+    # ------------------------ XGBOOST -------------------------------------------
+    # Criando dados de exemplo
+    X, y = make_blobs(n_samples=300, centers=4, random_state=42)
+
+    # Dividindo os dados em treino e teste
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Treinando o modelo XGBoost
+    xgb_model = xgb.XGBClassifier()
+    xgb_model.fit(X_train, y_train)
+
+    # Fazendo a previsão com os dados de teste
+    y_pred_xgb = xgb_model.predict(X_test)
+
+    # Exibindo o relatório de classificação e a acurácia
+    print("Relatório de Classificação (XGBOOST):")
+    print(classification_report(y_test, y_pred_xgb))
+
+    accuracy_xgb = accuracy_score(y_test, y_pred_xgb)
+    print(f"Porcentagem de Acerto do modelo XGBOOST: {accuracy_xgb * 100:.2f}%")
+
+
+    # Plotando a separação de classes no espaço bidimensional
+    plt.figure(figsize=(8, 6))
+
+    # Determinando limites do gráfico
+    x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+    y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+
+    # Criando a grade para o gráfico
+    h = 0.02  # Tamanho do passo na grade
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+
+    # Fazendo previsões para cada ponto na grade
+    Z = xgb_model.predict(np.c_[xx.ravel(), yy.ravel()])
+    Z = Z.reshape(xx.shape)
+
+    # Plotando a região de decisão
+    plt.contourf(xx, yy, Z, alpha=0.8)
+
+    # Plotando os pontos de dados
+    plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.Paired)
+    plt.xlabel('Feature 1')
+    plt.ylabel('Feature 2')
+    plt.title('XGBoost Classifier')
+    plt.show()
+
+    # Cálculo da matriz de confusão
+    conf_matrix_xgb = confusion_matrix(y_test, y_pred_xgb)
+
+    # Exibição da matriz de confusão usando seaborn
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(conf_matrix_xgb, annot=True, cmap='Blues', fmt='d', cbar=False)
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Matriz de Confusão - XGBOOST')
     plt.show()
 
 if __name__ == "__main__":
